@@ -19,21 +19,21 @@
     "ignoreCommand": []
   },
   "adminBot": [
-    "100083039411474"
+    "61588057525081"
   ],
   "premiumUsers": [
-    "100083039411474"
+    "61588057525081"
   ],
   "devUsers": [
-    "100083039411474"
+    "61588057525081"
   ],
   "notes_premiumUsers": "List of user IDs with premium access (role 3)",
   "notes_devUsers": "List of developer IDs with full access (role 4)",
   "whiteListMode": {
     "enable": false,
     "whiteListIds": [
-      "100083039411474",
-      "61584688437528"
+      "61588057525081",
+      "61588057525081"
     ],
     "notes": "if you enable this feature, only the ids in the whiteListIds list can use the bot"
   },
@@ -76,9 +76,9 @@
     "notes": "you can set time is interval with milisecond or cron time, example: 1000, 10000, 60000, 3600000, 86400000, 0 0 * * *,... docs: https://www.npmjs.com/package/node-cron. If you set time is 0 or false or null, the bot will not auto restart"
   },
   "autoUptime": {
-    "enable": false,
+    "enable": true,
     "timeInterval": 180,
-    "url": "",
+    "url": "https://${process.env.RAILWAY_STATIC_URL || process.env.RENDER_EXTERNAL_URL}",
     "notes": "the value of timeInterval is seconds, url is the url you want to send the request to (automatically detected for hosting glitch or replit)"
   },
   "autoLoadScripts": {
@@ -137,7 +137,7 @@
     "updatePresence": true,
     "listenTyping": true,
     "logLevel": "error",
-    "selfListen": false,
+    "selfListen": true,
     "selfListenEvent": true,
     "autoMarkDelivery": false,
     "autoReconnect": false,

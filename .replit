@@ -6,38 +6,3 @@ modules = ["nodejs-20"]
 [nix]
 channel = "stable-24_11"
 packages = ["libuuid"]
-
-[[ports]]
-localPort = 3001
-externalPort = 80
-
-[[ports]]
-localPort = 5000
-externalPort = 80
-
-[agent]
-expertMode = true
-
-[workflows]
-runButton = "Project"
-
-[[workflows.workflow]]
-name = "Project"
-mode = "parallel"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "Goat Bot V2 Server"
-
-[[workflows.workflow]]
-name = "Goat Bot V2 Server"
-author = "agent"
-
-[workflows.workflow.metadata]
-outputType = "webview"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "npm start"
-waitForPort = 5000

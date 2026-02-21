@@ -1,195 +1,114 @@
 const axios = require('axios');
-const fs = require('fs');
-const path = require('path');
 
 const supportedDomains = [
-  { domain: 'facebook.com', cookieFile: null },
-  { domain: 'instagram.com', cookieFile: 'insta.txt' },
-  { domain: 'youtube.com', cookieFile: 'yt.txt' },
-  { domain: 'youtu.be', cookieFile: 'yt.txt' },
-  { domain: 'pinterest.com', cookieFile: null },
-  { domain: "tiktok.com", cookieFile: null },
+  { domain: 'facebook.com' },
+  { domain: 'instagram.com' },
+  { domain: 'youtube.com' },
+  { domain: 'youtu.be' },
+  { domain: 'pinterest.com' },
+  { domain: 'tiktok.com' },
+  { domain: 'x.com' },
+  { domain: 'twitter.com' }
 ];
 
 function getMainDomain(url) {
   try {
     const hostname = new URL(url).hostname;
-    if (hostname === 'youtu.be') {
-      return 'youtube.com';
-    }
+    if (hostname === 'youtu.be') return 'youtube.com';
     const parts = hostname.split('.');
-    if (parts.length > 2) {
-      return parts.slice(-2).join('.');
-    }
-    return hostname;
+    return parts.length > 2 ? parts.slice(-2).join('.') : hostname;
   } catch (e) {
     return null;
   }
 }
 
-function getDefaultCookie(domain) {
-  const domainEntry = supportedDomains.find(entry => entry.domain === domain);
-  return domainEntry ? domainEntry.cookieFile : null;
-}
-
-function parseArgs(args) {
-  const params = {};
-  args.forEach((arg, i) => {
-    if (arg.startsWith('--')) {
-      const key = arg.slice(2).toLowerCase();
-      const value = args[i + 1];
-      switch (key) {
-        case 'maxsize':
-        case 'ms':
-        case 'fs':
-          if (!isNaN(Number(value))) params.filesize = Number(value);
-          break;
-        case 'type':
-        case 'format':
-        case 'media':
-        case 'f':
-          if (['video', 'audio'].includes(value.toLowerCase())) {
-            params.format = value.toLowerCase();
-          }
-          break;
-        case 'cookie':
-        case 'cookies':
-        case 'c':
-          const cookiePath = path.join(process.cwd(), value);
-          if (fs.existsSync(cookiePath)) {
-            params.cookies = fs.readFileSync(cookiePath, 'utf-8');
-          }
-          break;
-        default:
-          break;
-      }
-    }
-  });
-  return params;
-}
-
-async function download({ url, params, message, event }) {
+async function download({ url, message, event }) {
   try {
+    const res = await axios.get(`https://free-goat-api.onrender.com/alldl?url=${encodeURIComponent(url)}`);
+    const data = res.data;
+
+    if (!data.status) return;
+
+    const streamUrl = data.links.hd || data.links.sd || data.links.mp3;
+    if (!streamUrl) return;
+
+    const stream = (await axios.get(streamUrl, { responseType: 'stream' })).data;
     const domain = getMainDomain(url);
-    
-    if (!params.cookies) {
-      const defaultCookieFile = getDefaultCookie(domain);
-      if (defaultCookieFile) {
-        const cookiePath = path.join(process.cwd(), defaultCookieFile);
-        if (fs.existsSync(cookiePath)) {
-          params.cookies = fs.readFileSync(cookiePath, 'utf-8');
-        }
-      }
-    }
-    
-    if (!params.filesize) {
-      params.filesize = 25;
-    }
-    
-    const requestBody = {
-      url,
-      ...(params.format && { format: params.format }),
-      ...(params.filesize && { filesize: params.filesize }),
-      ...(params.cookies && { cookies: params.cookies }),
-    };
-    
-    const apiUrl = (await axios.get('https://raw.githubusercontent.com/Tanvir0999/stuffs/refs/heads/main/raw/addresses.json')).data.megadl;
-    const response = await axios.post(apiUrl, requestBody);
-    const data = response.data;
-    
+
     await message.reply({
-      body: `• ${data.title.length > 50 ? data.title.slice(0, 50) + "..." : data.title}\n• Duration: ${data.duration}\n• Upload Date: ${data.upload_date || '--'}\n• Source: ${data.source}\n\n• Stream: ${data.url}`,
-      attachment: await global.utils.getStreamFromUrl(data.url),
+      body: `Video Downloaded 🐦\nTitle: ${data.title}\nSource: ${domain}`,
+      attachment: stream
     });
-    
+
     message.reaction('✅', event.messageID);
   } catch (error) {
     message.reaction('❌', event.messageID);
-    return { repay: 50 };
   }
 }
 
 module.exports = {
   config: {
     name: 'download',
-    aliases: ['downloader', 'megadl', 'fb', 'fbdl', 'facebook', 'insta', 'instadl', 'instagram', 'yt', 'ytdl'],
-    version: '2.3',
-    author: 'tanvir',
+    aliases: ['dl', 'fbdl', 'ytdl', 'instadl', 'alldl'],
+    version: '2.1',
+    author: 'Neoaz ゐ',
     countDown: 5,
     role: 0,
-    longDescription: 'Download videos or audios from supported platforms. Supports parameters for file size, format, and cookies.',
+    longDescription: 'Download media automatically or via command using Free Goat API.',
     category: 'media',
     guide: {
-      en: {
-        body: `{pn} [URL] [optional parameters]\n\n
-  # Examples:
-     • {pn} https://facebook.com/video --fs 100 --type audio --c cookies.txt\n
-     • {pn} https://youtube.com/watch?v=abc --maxsize 200 --format video\n
-     • {pn} https://instagram.com/p/xyz\n\n
-  # Parameters:
-     • URL: The video or audio URL from a supported platform.\n
-     • --fs or --maxsize: Maximum file size in MB (default: 25).\n
-     • --type or --format: Download type ('video' or 'audio', optional).\n
-     • --c or --cookie: Path to a cookie file (defaults based on platform).`,
-      },
-    },
+      en: '{pn} [URL] or reply to a link'
+    }
   },
-  
-  onStart: async function({ message, args, event, threadsData, role }) {
-    if (args[0] === 'chat' && (args[1] === 'on' || args[1] === 'off') || args[0] === 'on' || args[0] === 'off') {
-      if (role < 1) {
-        return message.reply('You do not have permission to change auto-download settings.');
-      }
-      const choice = args[0] === 'on' || args[1] === 'on';
-      const gcData = await threadsData.get(event.threadID, "data");
+
+  onStart: async function ({ message, args, event, threadsData, role }) {
+    if (['on', 'off'].includes(args[0])) {
+      if (role < 1) return message.reply('Access denied.');
+      const choice = args[0] === 'on';
+      const gcData = (await threadsData.get(event.threadID, "data")) || {};
       await threadsData.set(event.threadID, { data: { ...gcData, autoDownload: choice } });
-      return message.reply(`Auto-download has been turned ${choice ? 'on' : 'off'} for this group.`);
+      return message.reply(`Auto-download: ${choice ? 'Enabled' : 'Disabled'}`);
     }
+
+    let url = args.find(arg => /^https?:\/\//.test(arg));
     
-    const url = args.find(arg => /^https?:\/\//.test(arg));
-    if (!url) {
-      return message.reply('Please provide a valid URL to download.');
+    if (!url && event.type === "message_reply") {
+      const replyBody = event.messageReply.body;
+      const match = replyBody.match(/https?:\/\/[^\s]+/);
+      if (match) url = match[0];
     }
-    
+
+    if (!url) return message.reply('Please provide or reply to a valid link.');
+
     const domain = getMainDomain(url);
-    const isSupported = supportedDomains.some(entry => entry.domain === domain);
-    if (!isSupported) {
-      return message.reply('This platform is not enabled/supported. Please ask Admin to request support of this platform.');
+    if (!supportedDomains.some(d => d.domain === domain)) {
+      return message.reply('Unsupported platform.');
     }
-    
-    const paramArgs = args.filter(arg => arg !== url);
-    const params = parseArgs(paramArgs);
-    
+
     message.reaction('⏳', event.messageID);
-    await download({ url, params, message, event });
+    await download({ url, message, event });
   },
-  
-  onChat: async function({ event, message, threadsData }) {
-    const threadData = await threadsData.get(event.threadID);
-    if (!threadData.data.autoDownload || threadData.data.autoDownload === false || event.senderID === global.botID) {
-      return;
-    }
+
+  onChat: async function ({ event, message, threadsData }) {
+    if (event.senderID === global.botID || !event.body) return;
     
-    try {
-      const urlRegex = /https:\/\/[^\s]+/;
-      const match = event.body.match(urlRegex);
-      if (match) {
-        const url = match[0];
-        const domain = getMainDomain(url);
-        
-        const isSupported = supportedDomains.some(entry => entry.domain === domain);
-        if (isSupported) {
-          const prefix = await global.utils.getPrefix(event.threadID);
-          if (event.body.startsWith(prefix)) return;
-          
-          message.reaction('⏳', event.messageID);
-          const params = {};
-          await download({ url, params, message, event });
-        }
+    const threadData = await threadsData.get(event.threadID);
+    if (!threadData?.data?.autoDownload) return;
+
+    const urlRegex = /https?:\/\/[^\s]+/;
+    const match = event.body.match(urlRegex);
+    
+    if (match) {
+      const url = match[0];
+      const domain = getMainDomain(url);
+      
+      if (supportedDomains.some(d => d.domain === domain)) {
+        const prefix = await global.utils.getPrefix(event.threadID);
+        if (event.body.startsWith(prefix)) return;
+
+        message.reaction('⏳', event.messageID);
+        await download({ url, message, event });
       }
-    } catch (error) {
-      message.reaction('', event.messageID);
-      console.error('onChat Error:', error);
     }
-  },
+  }
 };
